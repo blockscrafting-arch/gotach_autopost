@@ -145,7 +145,10 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not current_draft:
             await query.message.reply_text("Черновик потерян. Отправь текст заново.")
             return ConversationHandler.END
-        await query.edit_message_text("Переделываю...")
+        try:
+            await query.edit_message_text("Переделываю...")
+        except Exception:
+            await query.message.reply_text("Переделываю...")
         try:
             new_post = await _generate_post(current_draft)
         except asyncio.TimeoutError:
@@ -160,7 +163,10 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return STATE_AWAITING_APPROVAL
         _, cleaned = validate_for_telegram(new_post)
         user_data[KEY_CURRENT_POST] = cleaned
-        await query.edit_message_text("Генерирую картинку...")
+        try:
+            await query.edit_message_text("Генерирую картинку...")
+        except Exception:
+            await query.message.reply_text("Генерирую картинку...")
         image_bytes = await _generate_post_image(cleaned)
         user_data[KEY_CURRENT_IMAGE] = image_bytes
         await _send_preview_with_buttons(query.message, cleaned, image_bytes)
@@ -179,6 +185,12 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         except Exception:
             await query.message.reply_text("Генерирую картинку...")
         image_bytes = await _generate_post_image(current_post)
+        if image_bytes is None:
+            await query.message.reply_text(
+                "Не удалось сгенерировать новую картинку (сервис не ответил вовремя). "
+                "Остаётся предыдущая. Можешь нажать ещё раз или опубликовать как есть."
+            )
+            return STATE_AWAITING_APPROVAL
         user_data[KEY_CURRENT_IMAGE] = image_bytes
         await _send_preview_with_buttons(query.message, current_post, image_bytes)
         return STATE_AWAITING_APPROVAL
