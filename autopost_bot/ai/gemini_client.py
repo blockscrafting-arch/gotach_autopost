@@ -34,8 +34,8 @@ def build_gemini_config(types: Any) -> Any:
     )
 
 
-# Request timeout in ms (90 s) so a hanging API does not block the bot
-GEMINI_REQUEST_TIMEOUT_MS = 90_000
+# Request timeout in ms (120 s) — Gemini sometimes needs more than 90s, then we fallback to next key
+GEMINI_REQUEST_TIMEOUT_MS = 120_000
 
 
 def generate_post(api_key: str, model: str, system_prompt: str, user_message: str) -> str:

@@ -10,8 +10,8 @@ from autopost_bot.prompts.system_prompt import (
     build_image_prompt,
 )
 
-# Request timeout in ms (90 s) so a hanging image API does not block the bot
-IMAGE_REQUEST_TIMEOUT_MS = 90_000
+# Request timeout in ms (120 s) so a hanging image API does not block the bot
+IMAGE_REQUEST_TIMEOUT_MS = 120_000
 
 
 def _get_genai_types():
