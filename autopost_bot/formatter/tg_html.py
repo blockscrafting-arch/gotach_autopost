@@ -17,7 +17,6 @@ TAG_PATTERN = re.compile(
     r"</?([a-zA-Z][a-zA-Z0-9-]*)(?:\s+[^>]*?)?\s*/?>"
 )
 
-
 def escape_text(text: str) -> str:
     """Escape <, >, & for use outside HTML tags."""
     return (
@@ -76,29 +75,76 @@ def clean_telegram_html(raw: str) -> str:
     return "".join(result)
 
 
+def _plain_text(line: str) -> str:
+    """Strip HTML tags for scoring; keep text only."""
+    return re.sub(TAG_PATTERN, "", line).strip()
+
+
+def _hook_score(line: str) -> float:
+    """
+    Score how hook-like a line is: question, number, contrast, punchy length.
+    Higher = better caption under image.
+    """
+    plain = _plain_text(line)
+    if not plain or len(plain) < 3:
+        return 0.0
+    score = 0.0
+    # Question — сильный хук
+    if plain.rstrip().endswith("?"):
+        score += 2.0
+    # Цифры (часы, деньги, проценты)
+    if re.search(r"\d+[\s%₽$€ч\.]|\d+\s*(час|минут|дней|руб|долл)", plain, re.I):
+        score += 1.5
+    # Контраст / панч
+    contrast = re.compile(
+        r"\b(но|а\s|зато|вместо|было|стало|раньше|сейчас|это не)\b",
+        re.I,
+    )
+    if contrast.search(plain):
+        score += 1.2
+    # Короткая панчлайн (одна фраза)
+    word_count = len(plain.split())
+    if 4 <= word_count <= 15:
+        score += 0.8
+    if word_count <= 8:
+        score += 0.5
+    # Жирный / цитата в исходнике — часто хук
+    if "<b>" in line or "<blockquote" in line:
+        score += 0.7
+    # Слишком длинная строка — слабее как подпись
+    if len(plain) > 200:
+        score -= 0.5
+    return score
+
+
 def short_caption_for_image(post_html: str, max_len: int = 1024) -> str:
     """
-    Extract a short hook/caption for under the post image (Telegram caption limit).
-    Uses first 1–2 lines; if over max_len, truncates at line or word boundary.
+    Pick the strongest hook line for caption under image (not the opening).
+    Scores by: question, numbers, contrast, punchy length; avoids duplicating first 1–2 lines.
     """
-    if not post_html or len(post_html) <= max_len:
+    if not post_html:
         return post_html
-    lines = post_html.strip().splitlines()
+    lines = [ln.strip() for ln in post_html.strip().splitlines() if ln.strip()]
     if not lines:
         return post_html[: max_len - 3].rstrip() + "..."
-    two_lines = "\n".join(lines[:2]).strip()
-    if len(two_lines) <= max_len:
-        return two_lines
-    one_line = lines[0].strip()
-    if len(one_line) <= max_len:
-        return one_line
+
+    opening = set(lines[:2])
+    # Кандидаты: не дублируем самый старт поста
+    candidates = [ln for ln in lines[1:20] if ln and ln not in opening]
+    if not candidates:
+        teaser = lines[0]
+    else:
+        teaser = max(candidates, key=lambda ln: _hook_score(ln))
+
+    if len(teaser) <= max_len:
+        return teaser
     cut = max_len - 3
-    if one_line[cut:cut + 1].isspace() or cut >= len(one_line):
-        return one_line[:cut].rstrip() + "..."
-    last_space = one_line.rfind(" ", 0, cut + 1)
+    if cut >= len(teaser) or teaser[cut : cut + 1].isspace():
+        return teaser[:cut].rstrip() + "..."
+    last_space = teaser.rfind(" ", 0, cut + 1)
     if last_space > 0:
-        return one_line[:last_space].rstrip() + "..."
-    return one_line[:cut].rstrip() + "..."
+        return teaser[:last_space].rstrip() + "..."
+    return teaser[:cut].rstrip() + "..."
 
 
 def validate_for_telegram(text: str) -> tuple[bool, str]:

@@ -8,7 +8,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from autopost_bot.config import get_reference_photo_bytes, get_settings
-from autopost_bot.formatter.tg_html import short_caption_for_image, validate_for_telegram
+from autopost_bot.formatter.tg_html import (
+    short_caption_for_image,
+    validate_for_telegram,
+)
 from autopost_bot.prompts.system_prompt import (
     SYSTEM_PROMPT,
     build_edit_message,
