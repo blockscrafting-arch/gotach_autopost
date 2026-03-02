@@ -1,0 +1,20 @@
+[Unit]
+Description=Telegram Autopost Bot (vlad.execute)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vladexecute
+Group=vladexecute
+WorkingDirectory=/opt/autopost_bot
+EnvironmentFile=/opt/autopost_bot/.env
+ExecStart=/opt/autopost_bot/.venv/bin/python -m autopost_bot.main
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=autopost-bot
+
+[Install]
+WantedBy=multi-user.target

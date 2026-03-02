@@ -1,0 +1,27 @@
+# Cursor / IDE
+.cursor/
+
+# Markdown (по запросу — не комить)
+*.md
+
+# Secrets
+.env
+.env.local
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Reference photos (локальные данные)
+reference_photos/
