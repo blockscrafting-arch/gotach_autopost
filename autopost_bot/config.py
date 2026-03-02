@@ -27,13 +27,14 @@ class Settings(BaseSettings):
     gemini_api_key_1: str = ""
     gemini_api_key_2: str = ""
 
-    # OpenRouter fallback
+    # OpenRouter fallback (text)
     openrouter_api_key: str = ""
+    openrouter_model: str = "google/gemini-3-flash-preview"
 
-    # Model (text)
+    # Model text (native Gemini API)
     gemini_model: str = "gemini-3-flash-preview"
 
-    # Image generation (Gemini 3.1 Flash Image)
+    # Image (native Gemini API)
     gemini_image_model: str = "gemini-3.1-flash-image-preview"
 
     # Reference photos for "with me" image generation (path to directory)

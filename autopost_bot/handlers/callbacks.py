@@ -60,6 +60,7 @@ async def _generate_post(draft: str) -> str:
             gemini_keys=s.get_gemini_keys(),
             openrouter_key=s.openrouter_api_key or None,
             model=s.gemini_model,
+            openrouter_model=s.openrouter_model,
         ),
         timeout=POST_GENERATION_TIMEOUT,
     )
@@ -246,6 +247,7 @@ async def apply_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
                 gemini_keys=settings.get_gemini_keys(),
                 openrouter_key=settings.openrouter_api_key or None,
                 model=settings.gemini_model,
+                openrouter_model=settings.openrouter_model,
             ),
             timeout=POST_GENERATION_TIMEOUT,
         )

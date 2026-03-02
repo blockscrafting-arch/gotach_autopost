@@ -43,11 +43,12 @@ def generate_post(
             continue
 
     if openrouter_key and openrouter_key.strip():
+        fallback_model = openrouter_model or "google/gemini-3-flash-preview"
         try:
-            logger.info("Trying OpenRouter fallback")
+            logger.info("Trying OpenRouter fallback (model={})", fallback_model)
             text = openrouter_generate(
                 api_key=openrouter_key.strip(),
-                model=openrouter_model or "google/gemini-2.0-flash-001",
+                model=fallback_model,
                 system_prompt=system_prompt,
                 user_message=user_message,
             )

@@ -8,8 +8,8 @@ from loguru import logger
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Fallback model if Gemini 3 not on OpenRouter
-DEFAULT_MODEL = "google/gemini-2.0-flash-001"
+# Default model for OpenRouter (text fallback)
+DEFAULT_MODEL = "google/gemini-3-flash-preview"
 
 
 def generate_post(
@@ -22,7 +22,7 @@ def generate_post(
 ) -> str:
     """
     Generate a post via OpenRouter chat completions API.
-    model: e.g. google/gemini-2.0-flash-001 or google/gemini-3-flash (when available).
+    model: e.g. google/gemini-3-flash-preview.
     """
     payload = {
         "model": model or DEFAULT_MODEL,
