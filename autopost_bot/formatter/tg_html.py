@@ -82,45 +82,49 @@ def _plain_text(line: str) -> str:
 
 def _hook_score(line: str) -> float:
     """
-    Score how hook-like a line is: question, number, contrast, punchy length.
-    Higher = better caption under image.
+    Оценка «мощности» строки как хука под картинку.
+    Вопрос, цифра, контраст, короткий панч — выше балл.
     """
     plain = _plain_text(line)
     if not plain or len(plain) < 3:
         return 0.0
     score = 0.0
-    # Question — сильный хук
+    # Вопрос — очень сильный хук
     if plain.rstrip().endswith("?"):
-        score += 2.0
+        score += 2.5
     # Цифры (часы, деньги, проценты)
     if re.search(r"\d+[\s%₽$€ч\.]|\d+\s*(час|минут|дней|руб|долл)", plain, re.I):
-        score += 1.5
+        score += 1.8
     # Контраст / панч
     contrast = re.compile(
         r"\b(но|а\s|зато|вместо|было|стало|раньше|сейчас|это не)\b",
         re.I,
     )
     if contrast.search(plain):
-        score += 1.2
-    # Короткая панчлайн (одна фраза)
+        score += 1.5
+    # Длина: короткий панч лучше под картинку
     word_count = len(plain.split())
-    if 4 <= word_count <= 15:
-        score += 0.8
-    if word_count <= 8:
-        score += 0.5
-    # Жирный / цитата в исходнике — часто хук
+    if word_count <= 5:
+        score += 1.2
+    elif word_count <= 10:
+        score += 1.0
+    elif 11 <= word_count <= 18:
+        score += 0.6
+    elif word_count > 35:
+        score -= 1.0
+    # Жирный / цитата — обычно главная мысль
     if "<b>" in line or "<blockquote" in line:
-        score += 0.7
-    # Слишком длинная строка — слабее как подпись
-    if len(plain) > 200:
-        score -= 0.5
+        score += 1.0
+    # Слишком длинная строка — плохая подпись
+    if len(plain) > 180:
+        score -= 0.8
     return score
 
 
 def short_caption_for_image(post_html: str, max_len: int = 1024) -> str:
     """
-    Pick the strongest hook line for caption under image (not the opening).
-    Scores by: question, numbers, contrast, punchy length; avoids duplicating first 1–2 lines.
+    Под картинкой — одна самая мощная строка поста (хук).
+    Выбираем по баллам по всему посту: вопрос, цифра, контраст, короткий панч.
     """
     if not post_html:
         return post_html
@@ -128,13 +132,9 @@ def short_caption_for_image(post_html: str, max_len: int = 1024) -> str:
     if not lines:
         return post_html[: max_len - 3].rstrip() + "..."
 
-    opening = set(lines[:2])
-    # Кандидаты: не дублируем самый старт поста
-    candidates = [ln for ln in lines[1:20] if ln and ln not in opening]
-    if not candidates:
-        teaser = lines[0]
-    else:
-        teaser = max(candidates, key=lambda ln: _hook_score(ln))
+    # Берём самую мощную строку по всему посту (до разумного предела)
+    candidates = [ln for ln in lines[:25] if ln]
+    teaser = max(candidates, key=lambda ln: _hook_score(ln)) if candidates else lines[0]
 
     if len(teaser) <= max_len:
         return teaser
