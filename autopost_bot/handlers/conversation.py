@@ -44,5 +44,6 @@ def build_conversation_handler():
         ],
         name="post_flow",
         persistent=False,
-        per_message=True,
+        # per_message=True нельзя: при нём все хендлеры должны быть CallbackQueryHandler,
+        # у нас entry_points и apply_edit — MessageHandler, fallback — CommandHandler.
     )
