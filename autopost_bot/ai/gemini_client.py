@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Gemini 3 Flash client with tools (Google Search, Code Execution, custom functions)."""
+"""Gemini 3 Flash client with tools (Google Search, custom functions). Code execution not mixed with Function Calling per API."""
 
 from __future__ import annotations
 
@@ -21,11 +21,10 @@ def _get_genai_types():
 
 
 def build_gemini_config(types: Any) -> Any:
-    """Build GenerateContentConfig with all tools."""
+    """Build GenerateContentConfig with tools (Google Search + function_declarations only; code_execution cannot be combined with Function Calling)."""
     return types.GenerateContentConfig(
         tools=[
             types.Tool(google_search=types.GoogleSearch()),
-            types.Tool(code_execution=types.ToolCodeExecution()),
             types.Tool(
                 function_declarations=[
                     GET_CURRENT_DATETIME_DECL,

@@ -44,4 +44,5 @@ def build_conversation_handler():
         ],
         name="post_flow",
         persistent=False,
+        per_message=True,
     )
