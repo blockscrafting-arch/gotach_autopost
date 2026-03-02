@@ -5,8 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=vladexecute
-Group=vladexecute
+# Запуск от root. Если создашь пользователя (см. DEPLOY.md) — раскомментируй:
+# User=vladexecute
+# Group=vladexecute
 WorkingDirectory=/opt/autopost_bot
 EnvironmentFile=/opt/autopost_bot/.env
 ExecStart=/opt/autopost_bot/.venv/bin/python -m autopost_bot.main

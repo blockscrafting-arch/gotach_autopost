@@ -53,6 +53,7 @@ def generate_post_image(
         ),
         thinking_config=types.ThinkingConfig(thinking_level="high"),
         tools=[types.Tool(google_search=types.GoogleSearch())],
+        system_instruction=IMAGE_GENERATION_SYSTEM_PROMPT,
     )
 
     try:
@@ -60,7 +61,6 @@ def generate_post_image(
             model=model,
             contents=parts,
             config=config,
-            system_instruction=IMAGE_GENERATION_SYSTEM_PROMPT,
         )
     except Exception as e:
         logger.warning("Image generation request failed: {}", e)

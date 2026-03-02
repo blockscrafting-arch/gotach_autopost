@@ -43,13 +43,16 @@ def generate_post(api_key: str, model: str, system_prompt: str, user_message: st
     """
     genai, types = _get_genai_types()
     client = genai.Client(api_key=api_key)
-    config = build_gemini_config(types)
+    base_config = build_gemini_config(types)
+    config = types.GenerateContentConfig(
+        tools=base_config.tools,
+        system_instruction=system_prompt,
+    )
 
     response = client.models.generate_content(
         model=model,
         contents=user_message,
         config=config,
-        system_instruction=system_prompt,
     )
 
     if not response.candidates:
