@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from loguru import logger
 
+from autopost_bot.formatter.tg_html import short_caption_for_image
+
 
 TELEGRAM_MESSAGE_MAX_LENGTH = 4096
 TELEGRAM_CAPTION_MAX_LENGTH = 1024
@@ -35,11 +37,7 @@ async def publish_to_channel(
         post_html = post_html[: TELEGRAM_MESSAGE_MAX_LENGTH - 3].rstrip() + "..."
     try:
         if image_bytes:
-            caption = (
-                post_html
-                if len(post_html) <= TELEGRAM_CAPTION_MAX_LENGTH
-                else post_html[: TELEGRAM_CAPTION_MAX_LENGTH - 3].rstrip() + "..."
-            )
+            caption = short_caption_for_image(post_html, max_len=TELEGRAM_CAPTION_MAX_LENGTH)
             await bot.send_photo(
                 chat_id=channel_id,
                 photo=image_bytes,

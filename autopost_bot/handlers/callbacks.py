@@ -8,7 +8,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from autopost_bot.config import get_reference_photo_bytes, get_settings
-from autopost_bot.formatter.tg_html import validate_for_telegram
+from autopost_bot.formatter.tg_html import short_caption_for_image, validate_for_telegram
 from autopost_bot.prompts.system_prompt import (
     SYSTEM_PROMPT,
     build_edit_message,
@@ -81,14 +81,10 @@ async def _generate_post_image(post_summary: str) -> bytes | None:
 
 
 async def _send_preview_with_buttons(msg, cleaned: str, image_bytes: bytes | None) -> None:
-    """Send post preview: photo+caption or text only; caption limited to 1024."""
+    """Send post preview: photo + short caption (hook), then full post if long; caption limited to 1024."""
     keyboard = _approval_keyboard()
     if image_bytes:
-        caption = (
-            cleaned
-            if len(cleaned) <= TELEGRAM_CAPTION_MAX_LENGTH
-            else cleaned[: TELEGRAM_CAPTION_MAX_LENGTH - 3].rstrip() + "..."
-        )
+        caption = short_caption_for_image(cleaned, max_len=TELEGRAM_CAPTION_MAX_LENGTH)
         try:
             await msg.reply_photo(
                 photo=image_bytes,

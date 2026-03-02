@@ -76,6 +76,31 @@ def clean_telegram_html(raw: str) -> str:
     return "".join(result)
 
 
+def short_caption_for_image(post_html: str, max_len: int = 1024) -> str:
+    """
+    Extract a short hook/caption for under the post image (Telegram caption limit).
+    Uses first 1–2 lines; if over max_len, truncates at line or word boundary.
+    """
+    if not post_html or len(post_html) <= max_len:
+        return post_html
+    lines = post_html.strip().splitlines()
+    if not lines:
+        return post_html[: max_len - 3].rstrip() + "..."
+    two_lines = "\n".join(lines[:2]).strip()
+    if len(two_lines) <= max_len:
+        return two_lines
+    one_line = lines[0].strip()
+    if len(one_line) <= max_len:
+        return one_line
+    cut = max_len - 3
+    if one_line[cut:cut + 1].isspace() or cut >= len(one_line):
+        return one_line[:cut].rstrip() + "..."
+    last_space = one_line.rfind(" ", 0, cut + 1)
+    if last_space > 0:
+        return one_line[:last_space].rstrip() + "..."
+    return one_line[:cut].rstrip() + "..."
+
+
 def validate_for_telegram(text: str) -> tuple[bool, str]:
     """
     Validate that the text is valid Telegram HTML.
