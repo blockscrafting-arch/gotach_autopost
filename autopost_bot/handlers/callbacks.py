@@ -27,7 +27,7 @@ TELEGRAM_CAPTION_MAX_LENGTH = 1024
 
 # Timeouts so the bot does not hang on slow/hanging API
 POST_GENERATION_TIMEOUT = 240.0  # seconds (2 Gemini keys + OpenRouter)
-IMAGE_GENERATION_TIMEOUT = 120.0  # seconds per provider
+IMAGE_GENERATION_TIMEOUT = 180.0  # seconds per provider (Gemini 3.1 Flash Image + thinking can be slow)
 
 STATE_IDLE = "idle"
 STATE_AWAITING_APPROVAL = "awaiting_approval"
