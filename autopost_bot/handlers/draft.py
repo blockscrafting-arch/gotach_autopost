@@ -45,6 +45,12 @@ async def handle_draft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
     await update.message.reply_text("Генерирую пост...")
     try:
         post = await _generate_post(draft)
+    except asyncio.TimeoutError:
+        from loguru import logger
+        logger.warning("Draft generation timed out")
+        await update.message.reply_text("Сервис не ответил вовремя. Попробуй ещё раз.")
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
     except Exception as e:
         from loguru import logger
         logger.warning("Draft generation failed: {}", e)

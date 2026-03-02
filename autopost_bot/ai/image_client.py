@@ -10,6 +10,9 @@ from autopost_bot.prompts.system_prompt import (
     build_image_prompt,
 )
 
+# Request timeout in ms (90 s) so a hanging image API does not block the bot
+IMAGE_REQUEST_TIMEOUT_MS = 90_000
+
 
 def _get_genai_types():
     """Lazy import google.genai.types."""
@@ -36,7 +39,10 @@ def generate_post_image(
         logger.warning("Image generation skipped: empty post summary")
         return None
     genai_client, types = _get_genai_types()
-    client = genai_client.Client(api_key=api_key)
+    client = genai_client.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=IMAGE_REQUEST_TIMEOUT_MS),
+    )
 
     # Build contents: reference images first, then text prompt
     parts: list = []

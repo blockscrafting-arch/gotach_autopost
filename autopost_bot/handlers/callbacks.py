@@ -25,6 +25,10 @@ KEY_STATE = "state"
 # Caption limit for Telegram (send_photo)
 TELEGRAM_CAPTION_MAX_LENGTH = 1024
 
+# Timeouts so the bot does not hang on slow/hanging API
+POST_GENERATION_TIMEOUT = 240.0  # seconds (2 Gemini keys + OpenRouter)
+IMAGE_GENERATION_TIMEOUT = 120.0  # seconds per provider
+
 STATE_IDLE = "idle"
 STATE_AWAITING_APPROVAL = "awaiting_approval"
 STATE_AWAITING_EDIT = "awaiting_edit"
@@ -43,17 +47,20 @@ def _approval_keyboard() -> InlineKeyboardMarkup:
 
 
 async def _generate_post(draft: str) -> str:
-    """Run AI generation in thread (blocking)."""
+    """Run AI generation in thread (blocking), with timeout."""
     from autopost_bot.ai.provider import generate_post as ai_generate
     from autopost_bot.config import get_settings
     s = get_settings()
-    return await asyncio.to_thread(
-        ai_generate,
-        system_prompt=SYSTEM_PROMPT,
-        user_message=build_user_message(draft),
-        gemini_keys=s.get_gemini_keys(),
-        openrouter_key=s.openrouter_api_key or None,
-        model=s.gemini_model,
+    return await asyncio.wait_for(
+        asyncio.to_thread(
+            ai_generate,
+            system_prompt=SYSTEM_PROMPT,
+            user_message=build_user_message(draft),
+            gemini_keys=s.get_gemini_keys(),
+            openrouter_key=s.openrouter_api_key or None,
+            model=s.gemini_model,
+        ),
+        timeout=POST_GENERATION_TIMEOUT,
     )
 
 
@@ -68,13 +75,21 @@ async def _generate_post_image(post_summary: str) -> bytes | None:
     refs = get_reference_photo_bytes(settings)
     summary = (post_summary or "")[:1000]
     for api_key in keys:
-        result = await asyncio.to_thread(
-            image_client.generate_post_image,
-            api_key=api_key,
-            model=settings.gemini_image_model,
-            post_text_or_summary=summary,
-            reference_photo_bytes=refs,
-        )
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    image_client.generate_post_image,
+                    api_key=api_key,
+                    model=settings.gemini_image_model,
+                    post_text_or_summary=summary,
+                    reference_photo_bytes=refs,
+                ),
+                timeout=IMAGE_GENERATION_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            from loguru import logger
+            logger.warning("Image generation timed out for one provider")
+            continue
         if result:
             return result
     return None
@@ -132,6 +147,11 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.edit_message_text("Переделываю...")
         try:
             new_post = await _generate_post(current_draft)
+        except asyncio.TimeoutError:
+            from loguru import logger
+            logger.warning("Redo generation timed out")
+            await query.message.reply_text("Сервис не ответил вовремя. Нажми «Переделать» ещё раз.")
+            return STATE_AWAITING_APPROVAL
         except Exception as e:
             from loguru import logger
             logger.warning("Redo generation failed: {}", e)
@@ -192,14 +212,22 @@ async def apply_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     await update.message.reply_text("Применяю правки...")
     from autopost_bot.ai.provider import generate_post as ai_generate
     try:
-        new_post = await asyncio.to_thread(
-            ai_generate,
-            system_prompt=SYSTEM_PROMPT,
-            user_message=build_edit_message(current_post, edits.strip()),
-            gemini_keys=settings.get_gemini_keys(),
-            openrouter_key=settings.openrouter_api_key or None,
-            model=settings.gemini_model,
+        new_post = await asyncio.wait_for(
+            asyncio.to_thread(
+                ai_generate,
+                system_prompt=SYSTEM_PROMPT,
+                user_message=build_edit_message(current_post, edits.strip()),
+                gemini_keys=settings.get_gemini_keys(),
+                openrouter_key=settings.openrouter_api_key or None,
+                model=settings.gemini_model,
+            ),
+            timeout=POST_GENERATION_TIMEOUT,
         )
+    except asyncio.TimeoutError:
+        from loguru import logger
+        logger.warning("Apply edit timed out")
+        await update.message.reply_text("Сервис не ответил вовремя. Попробуй ещё раз.")
+        return STATE_AWAITING_EDIT
     except Exception as e:
         from loguru import logger
         logger.warning("Apply edit failed: {}", e)

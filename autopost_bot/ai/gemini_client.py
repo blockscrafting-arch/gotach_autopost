@@ -34,13 +34,20 @@ def build_gemini_config(types: Any) -> Any:
     )
 
 
+# Request timeout in ms (90 s) so a hanging API does not block the bot
+GEMINI_REQUEST_TIMEOUT_MS = 90_000
+
+
 def generate_post(api_key: str, model: str, system_prompt: str, user_message: str) -> str:
     """
     Generate a post using Gemini 3 Flash.
     Returns the final post text (Telegram HTML).
     """
     genai, types = _get_genai_types()
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=GEMINI_REQUEST_TIMEOUT_MS),
+    )
     base_config = build_gemini_config(types)
     config = types.GenerateContentConfig(
         tools=base_config.tools,
