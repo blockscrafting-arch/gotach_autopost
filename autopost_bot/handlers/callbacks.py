@@ -174,7 +174,10 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not current_post:
             await query.message.reply_text("Пост потерян. Отправь черновик заново.")
             return ConversationHandler.END
-        await query.edit_message_text("Генерирую картинку...")
+        try:
+            await query.edit_message_text("Генерирую картинку...")
+        except Exception:
+            await query.message.reply_text("Генерирую картинку...")
         image_bytes = await _generate_post_image(current_post)
         user_data[KEY_CURRENT_IMAGE] = image_bytes
         await _send_preview_with_buttons(query.message, current_post, image_bytes)
