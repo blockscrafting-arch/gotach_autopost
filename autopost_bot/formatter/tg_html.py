@@ -121,6 +121,51 @@ def _hook_score(line: str) -> float:
     return score
 
 
+def _truncate_caption(text: str, max_len: int) -> str:
+    """Truncate caption at word boundary."""
+    if len(text) <= max_len:
+        return text
+    cut = max_len - 3
+    if cut >= len(text) or text[cut : cut + 1].isspace():
+        return text[:cut].rstrip() + "..."
+    last_space = text.rfind(" ", 0, cut + 1)
+    if last_space > 0:
+        return text[:last_space].rstrip() + "..."
+    return text[:cut].rstrip() + "..."
+
+
+def _build_power_hook(best_line: str, lines: list[str]) -> str:
+    """Turn strongest line into a punchy caption hook."""
+    plain = _plain_text(best_line)
+    plain = re.sub(r"^[^\wА-Яа-яЁё]+", "", plain).strip()
+    if not plain:
+        return best_line
+
+    # Было/Стало -> провокационный контраст вместо сухого отчета
+    m_bilo = re.search(r"\bбыло\b\s*[:\-]?\s*(.+)$", plain, re.I)
+    if m_bilo:
+        was = m_bilo.group(1).strip(" .")
+        stalo = ""
+        for line in lines:
+            m_stalo = re.search(r"\bстало\b\s*[:\-]?\s*(.+)$", _plain_text(line), re.I)
+            if m_stalo:
+                stalo = m_stalo.group(1).strip(" .")
+                break
+        if was and stalo:
+            return f"{was} -> {stalo}. Как тебе такой разрыв?"
+        if was:
+            return f"{was} на один пост — и это считается нормой?"
+
+    # Строка с цифрой, но без вопроса -> добавляем вызов/напряжение
+    if re.search(r"\d", plain) and not plain.endswith("?"):
+        return f"{plain.rstrip('.!')} — тебя это реально устраивает?"
+
+    # Иначе: оставить как хук, но с вопросом, если он слишком нейтральный
+    if not plain.endswith(("?", "!")) and len(plain.split()) > 5:
+        return f"{plain} И вот где самое интересное."
+    return plain
+
+
 def short_caption_for_image(post_html: str, max_len: int = 1024) -> str:
     """
     Под картинкой — одна самая мощная строка поста (хук).
@@ -135,16 +180,8 @@ def short_caption_for_image(post_html: str, max_len: int = 1024) -> str:
     # Берём самую мощную строку по всему посту (до разумного предела)
     candidates = [ln for ln in lines[:25] if ln]
     teaser = max(candidates, key=lambda ln: _hook_score(ln)) if candidates else lines[0]
-
-    if len(teaser) <= max_len:
-        return teaser
-    cut = max_len - 3
-    if cut >= len(teaser) or teaser[cut : cut + 1].isspace():
-        return teaser[:cut].rstrip() + "..."
-    last_space = teaser.rfind(" ", 0, cut + 1)
-    if last_space > 0:
-        return teaser[:last_space].rstrip() + "..."
-    return teaser[:cut].rstrip() + "..."
+    hook = _build_power_hook(teaser, lines)
+    return _truncate_caption(hook, max_len)
 
 
 def validate_for_telegram(text: str) -> tuple[bool, str]:
