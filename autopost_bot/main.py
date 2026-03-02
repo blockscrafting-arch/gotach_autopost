@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 from loguru import logger
 
@@ -39,11 +40,15 @@ def main() -> None:
         logger.error("No AI provider: set GEMINI_API_KEY_1/2 or OPENROUTER_API_KEY in .env")
         sys.exit(1)
 
-    from telegram.ext import Application
+    from telegram.ext import Application, PicklePersistence
+
+    Path("data").mkdir(exist_ok=True)
+    persistence = PicklePersistence(filepath="data/bot_persistence.pickle")
 
     application = (
         Application.builder()
         .token(settings.bot_token)
+        .persistence(persistence)
         .post_init(_post_init)
         .post_shutdown(_post_shutdown)
         .build()

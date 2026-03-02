@@ -33,7 +33,7 @@ def build_conversation_handler():
         ],
         states={
             STATE_AWAITING_APPROVAL: [
-                CallbackQueryHandler(callback_approval, pattern="^post_(redo|edit|publish)$"),
+                CallbackQueryHandler(callback_approval, pattern="^post_(redo|edit|publish|regen_image)$"),
             ],
             STATE_AWAITING_EDIT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, apply_edit),

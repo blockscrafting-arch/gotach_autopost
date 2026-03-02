@@ -42,7 +42,8 @@ def _approval_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("Переделать", callback_data="post_redo"),
             InlineKeyboardButton("Отредактировать", callback_data="post_edit"),
             InlineKeyboardButton("Опубликовать", callback_data="post_publish"),
-        ]
+        ],
+        [InlineKeyboardButton("Перегенерить картинку", callback_data="post_regen_image")],
     ])
 
 
@@ -168,6 +169,16 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if query.data == "post_edit":
         await query.message.reply_text("Напиши правки текстом. Я применю их к посту и пришлю новый вариант.")
         return STATE_AWAITING_EDIT
+
+    if query.data == "post_regen_image":
+        if not current_post:
+            await query.message.reply_text("Пост потерян. Отправь черновик заново.")
+            return ConversationHandler.END
+        await query.edit_message_text("Генерирую картинку...")
+        image_bytes = await _generate_post_image(current_post)
+        user_data[KEY_CURRENT_IMAGE] = image_bytes
+        await _send_preview_with_buttons(query.message, current_post, image_bytes)
+        return STATE_AWAITING_APPROVAL
 
     if query.data == "post_publish":
         if not current_post:
