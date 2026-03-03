@@ -17,13 +17,15 @@ async def publish_to_channel(
     post_html: str,
     *,
     image_bytes: bytes | None = None,
+    image_caption: str | None = None,
     parse_mode: str = "HTML",
 ) -> bool:
     """
     Send post to channel. Returns True on success.
     bot: telegram.Bot (or application.bot)
     channel_id: @channel_username or -100xxxxxxxxxx
-    image_bytes: optional image to send with post as photo (caption = post text, max 1024).
+    image_bytes: optional image to send with post as photo.
+    image_caption: optional caption under photo (from model); else short_caption_for_image(post).
     """
     if not channel_id or not channel_id.strip():
         logger.error("Publish skipped: CHANNEL_ID is empty")
@@ -37,7 +39,7 @@ async def publish_to_channel(
         post_html = post_html[: TELEGRAM_MESSAGE_MAX_LENGTH - 3].rstrip() + "..."
     try:
         if image_bytes:
-            caption = short_caption_for_image(post_html, max_len=TELEGRAM_CAPTION_MAX_LENGTH)
+            caption = (image_caption or short_caption_for_image(post_html, max_len=TELEGRAM_CAPTION_MAX_LENGTH))[:TELEGRAM_CAPTION_MAX_LENGTH]
             await bot.send_photo(
                 chat_id=channel_id,
                 photo=image_bytes,

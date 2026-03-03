@@ -8,12 +8,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from autopost_bot.config import get_settings
-from autopost_bot.formatter.tg_html import validate_for_telegram
+from autopost_bot.formatter.tg_html import parse_post_and_caption, validate_for_telegram
 from autopost_bot.prompts.system_prompt import SYSTEM_PROMPT, build_user_message
 
 from .callbacks import (
     KEY_CURRENT_DRAFT,
     KEY_CURRENT_IMAGE,
+    KEY_CURRENT_IMAGE_CAPTION,
     KEY_CURRENT_POST,
     STATE_AWAITING_APPROVAL,
     _generate_post,
@@ -58,15 +59,17 @@ async def handle_draft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
         from telegram.ext import ConversationHandler
         return ConversationHandler.END
 
-    _, cleaned = validate_for_telegram(post)
+    post_clean, caption = parse_post_and_caption(post)
+    _, cleaned = validate_for_telegram(post_clean)
     context.user_data[KEY_CURRENT_DRAFT] = draft
     context.user_data[KEY_CURRENT_POST] = cleaned
+    context.user_data[KEY_CURRENT_IMAGE_CAPTION] = caption
 
     await update.message.reply_text("Генерирую картинку...")
     image_bytes = await _generate_post_image(cleaned)
     context.user_data[KEY_CURRENT_IMAGE] = image_bytes
 
-    await _send_preview_with_buttons(update.message, cleaned, image_bytes)
+    await _send_preview_with_buttons(update.message, cleaned, image_bytes, image_caption=caption)
     return STATE_AWAITING_APPROVAL
 
 

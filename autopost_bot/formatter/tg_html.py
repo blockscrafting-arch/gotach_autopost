@@ -75,6 +75,35 @@ def clean_telegram_html(raw: str) -> str:
     return "".join(result)
 
 
+# Модель в конце ответа выводит строку CAPTION: <хук под картинку>
+_CAPTION_LINE_RE = re.compile(r"^\s*CAPTION\s*:\s*(.*)$", re.IGNORECASE)
+
+
+def parse_post_and_caption(raw: str) -> tuple[str, str | None]:
+    """
+    Если последняя непустая строка ответа модели — CAPTION: <текст>, вернуть (пост без неё, caption).
+    Иначе (raw, None). Учитываем только последнюю строку, чтобы не вырезать CAPTION из середины поста.
+    """
+    if not raw or not raw.strip():
+        return raw, None
+    lines = raw.split("\n")
+    # Ищем последнюю непустую строку
+    last_nonempty = -1
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip():
+            last_nonempty = i
+            break
+    if last_nonempty < 0:
+        return raw.strip(), None
+    m = _CAPTION_LINE_RE.match(lines[last_nonempty].strip())
+    if not m:
+        return raw.strip(), None
+    caption = m.group(1).strip()
+    post_lines = [ln for i, ln in enumerate(lines) if i != last_nonempty]
+    post = "\n".join(post_lines).strip()
+    return post, caption if caption else None
+
+
 def _plain_text(line: str) -> str:
     """Strip HTML tags for scoring; keep text only."""
     return re.sub(TAG_PATTERN, "", line).strip()

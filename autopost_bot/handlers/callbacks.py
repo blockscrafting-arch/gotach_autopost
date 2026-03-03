@@ -9,6 +9,7 @@ from telegram.ext import ContextTypes
 
 from autopost_bot.config import get_reference_photo_bytes, get_settings
 from autopost_bot.formatter.tg_html import (
+    parse_post_and_caption,
     short_caption_for_image,
     validate_for_telegram,
 )
@@ -23,6 +24,7 @@ from autopost_bot.publisher.channel import publish_to_channel
 KEY_CURRENT_POST = "current_post"
 KEY_CURRENT_DRAFT = "current_draft"
 KEY_CURRENT_IMAGE = "current_image"  # bytes | None
+KEY_CURRENT_IMAGE_CAPTION = "current_image_caption"  # str | None, от модели
 KEY_STATE = "state"
 
 # Caption limit for Telegram (send_photo)
@@ -100,11 +102,13 @@ async def _generate_post_image(post_summary: str) -> bytes | None:
     return None
 
 
-async def _send_preview_with_buttons(msg, cleaned: str, image_bytes: bytes | None) -> None:
-    """Send post preview: photo + short caption (hook), then full post if long; caption limited to 1024."""
+async def _send_preview_with_buttons(
+    msg, cleaned: str, image_bytes: bytes | None, image_caption: str | None = None
+) -> None:
+    """Send post preview: photo + caption (от модели или fallback), then full post if long."""
     keyboard = _approval_keyboard()
     if image_bytes:
-        caption = short_caption_for_image(cleaned, max_len=TELEGRAM_CAPTION_MAX_LENGTH)
+        caption = (image_caption or short_caption_for_image(cleaned, max_len=TELEGRAM_CAPTION_MAX_LENGTH))[:TELEGRAM_CAPTION_MAX_LENGTH]
         try:
             await msg.reply_photo(
                 photo=image_bytes,
@@ -165,15 +169,17 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             logger.warning("Redo generation failed: {}", e)
             await query.message.reply_text("Сервис временно недоступен. Нажми «Переделать» ещё раз.")
             return STATE_AWAITING_APPROVAL
-        _, cleaned = validate_for_telegram(new_post)
+        post_clean, caption = parse_post_and_caption(new_post)
+        _, cleaned = validate_for_telegram(post_clean)
         user_data[KEY_CURRENT_POST] = cleaned
+        user_data[KEY_CURRENT_IMAGE_CAPTION] = caption
         try:
             await query.edit_message_text("Генерирую картинку...")
         except Exception:
             await query.message.reply_text("Генерирую картинку...")
         image_bytes = await _generate_post_image(cleaned)
         user_data[KEY_CURRENT_IMAGE] = image_bytes
-        await _send_preview_with_buttons(query.message, cleaned, image_bytes)
+        await _send_preview_with_buttons(query.message, cleaned, image_bytes, image_caption=caption)
         return STATE_AWAITING_APPROVAL
 
     if query.data == "post_edit":
@@ -196,7 +202,10 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
             return STATE_AWAITING_APPROVAL
         user_data[KEY_CURRENT_IMAGE] = image_bytes
-        await _send_preview_with_buttons(query.message, current_post, image_bytes)
+        await _send_preview_with_buttons(
+            query.message, current_post, image_bytes,
+            image_caption=user_data.get(KEY_CURRENT_IMAGE_CAPTION),
+        )
         return STATE_AWAITING_APPROVAL
 
     if query.data == "post_publish":
@@ -207,11 +216,13 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             await query.message.reply_text("Канал не настроен. Укажи CHANNEL_ID в .env")
             return STATE_AWAITING_APPROVAL
         image_bytes = user_data.get(KEY_CURRENT_IMAGE)
+        image_caption = user_data.get(KEY_CURRENT_IMAGE_CAPTION)
         success = await publish_to_channel(
             context.bot,
             settings.channel_id,
             current_post,
             image_bytes=image_bytes,
+            image_caption=image_caption,
         )
         if success:
             await query.message.reply_text("Опубликовано в канал.")
@@ -220,6 +231,7 @@ async def callback_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         user_data.pop(KEY_CURRENT_POST, None)
         user_data.pop(KEY_CURRENT_DRAFT, None)
         user_data.pop(KEY_CURRENT_IMAGE, None)
+        user_data.pop(KEY_CURRENT_IMAGE_CAPTION, None)
         return ConversationHandler.END
 
     return STATE_AWAITING_APPROVAL
@@ -265,10 +277,12 @@ async def apply_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
         await update.message.reply_text("Сервис временно недоступен. Попробуй ещё раз написать правки.")
         return STATE_AWAITING_EDIT
 
-    ok, cleaned = validate_for_telegram(new_post)
+    post_clean, caption = parse_post_and_caption(new_post)
+    ok, cleaned = validate_for_telegram(post_clean)
     user_data[KEY_CURRENT_POST] = cleaned
+    user_data[KEY_CURRENT_IMAGE_CAPTION] = caption
     await update.message.reply_text("Генерирую картинку...")
     image_bytes = await _generate_post_image(cleaned)
     user_data[KEY_CURRENT_IMAGE] = image_bytes
-    await _send_preview_with_buttons(update.message, cleaned, image_bytes)
+    await _send_preview_with_buttons(update.message, cleaned, image_bytes, image_caption=caption)
     return STATE_AWAITING_APPROVAL
